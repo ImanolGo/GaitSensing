@@ -3,6 +3,8 @@
 #include <avr/io.h> 
 #include <avr/wdt.h>
 
+#include <Bounce.h>
+
 // On the kathrin board, CS is pin 2. Note that even if it's not
  // used as the CS pin, the hardware CS pin (10 on most Arduino boards,
  // 53 on the Mega) must be left as an output or the SD library
@@ -24,6 +26,10 @@ const int s3 = 5;     // Down
 const int s4 = 3;     // Left / Right foot
 const int s5 = 6;     // Record / Calibrate
 const int s6 = 4;     // On / Off
+
+// Instantiate a Bounce object with a 5 millisecond debounce time
+int durationTime = 1000;
+Bounce bouncer_s5 = Bounce(s5,50); 
 
 int lastState_s3 = 0;     // previous state of the button
 int lastState_s2 = 0;     // previous state of the button
@@ -179,6 +185,8 @@ void setup() {
 
 void loop(){
   
+  bouncer_s5.update();
+  
   if(recMode||dataFile)
   {
       unsigned long currentMillis = millis();
@@ -226,17 +234,22 @@ void loop(){
           Serial.println(code);
       }
       
-      buttonState = digitalRead(s5);
-      if (buttonState != lastState_s5) //if s5 pressed, change to calibration mode
+      //buttonState = digitalRead(s5); 
+      buttonState = lastState_s5;
+      if(bouncer_s5.duration() > durationTime)
+      {
+          buttonState = bouncer_s5.read();
+      } 
+   
+      if (buttonState != lastState_s5 && buttonState == LOW) //if s5 pressed and hold and low, change to calibration mode
+       //if (buttonState != lastState_s5 && buttonState == LOW) //if s5 pressed and hold and low, change to calibration mode
       {
          Serial.println("s5: Calibration");
-         if (buttonState == LOW) 
-         { 
-            // if the file opened okay, write to it:
+          // if the file opened okay, write to it:
             if (dataFile)
             {
-              int freqNote = 880;
-              int MIDINote = 81;
+              int freqNote = 3520;
+              int MIDINote = 105;
               int delayMs = 100; 
               for(int i=0; i<3; i++)
               {
@@ -259,9 +272,8 @@ void loop(){
               Serial.println("data.txt not closed");
             }
             digitalWrite(ledPin, HIGH);
-            recMode = false;   
-         }
-      }
+            recMode = false; 
+      }   
       
       lastState_s5 = buttonState;
   }
@@ -466,7 +478,12 @@ void loop(){
       
      lastState_s2 = buttonState;
        
-       buttonState = digitalRead(s5);
+       //buttonState = digitalRead(s5);
+       buttonState = lastState_s5;
+      if(bouncer_s5.duration() > durationTime)
+      {
+          buttonState = bouncer_s5.read();
+      } 
       // compare the buttonState to its previous state
       if (buttonState != lastState_s5 && buttonState == LOW) { 
             Serial.println("s5: REC");
@@ -485,15 +502,16 @@ void loop(){
             }
             
             startRecTime = millis();
-            int freqNote = 880;
-            int MIDINote = 81;
+            int freqNote = 3520;
+            int MIDINote = 105;
             int delayMs = 500;
             Serial.println("Start REC"); 
             noTone(tonePin);
             String code = String(String(0)+","+String(MIDINote)+","+String(100)+","+String(delayMs));
             dataFile.println(code);
             tone(tonePin,freqNote); 
-            delay(delayMs); 
+            delay(delayMs);
+            noTone(tonePin); 
             recMode = true;   
       }
      
